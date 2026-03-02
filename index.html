@@ -1,67 +1,170 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Geotech Calculation Suite</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+<title>Drapery & Anchor Design – Full Excel Logic</title>
+<style>
+body{font-family:Arial;background:#f2f4f7;padding:20px;}
+.box{background:white;padding:20px;border-radius:10px;max-width:1100px;margin:auto;}
+input{width:100%;padding:6px;margin-bottom:8px;}
+button{background:#1f4e79;color:white;padding:10px;width:100%;border:none;}
+.results{background:#eef3f9;padding:15px;margin-top:20px;border-radius:8px;}
+h3{margin-top:20px;}
+</style>
 </head>
-<body class="bg-light">
-    <div class="container py-5">
-        <h2 class="mb-4">Engineering Calculation Tool</h2>
+<body>
 
-        <div class="card shadow-sm mb-4">
-            <div class="card-header bg-primary text-white">UTM Coordinate Converter</div>
-            <div class="card-body">
-                <div class="row g-3">
-                    <div class="col-md-5">
-                        <input type="number" id="lat" class="form-control" placeholder="Latitude (e.g., 27.21)">
-                    </div>
-                    <div class="col-md-5">
-                        <input type="number" id="lon" class="form-control" placeholder="Longitude (e.g., 89.50)">
-                    </div>
-                    <div class="col-md-2">
-                        <button class="btn btn-primary w-100" onclick="convertCoords()">Convert</button>
-                    </div>
-                </div>
-                <div id="coordResult" class="mt-3 p-3 bg-light rounded d-none"></div>
-            </div>
-        </div>
+<div class="box">
+<h2>Rock Drapery – Complete Excel Logic Version</h2>
 
-        <div class="card shadow-sm">
-            <div class="card-header bg-dark text-white">Reference: Bond Stress (MPa)</div>
-            <div class="card-body">
-                <p class="text-muted small">Based on rock-grout interface standards.</p>
-                <table class="table table-hover">
-                    <thead><tr><th>Rock Type</th><th>MPa Range</th></tr></thead>
-                    <tbody>
-                        <tr><td>Granite, Basalt</td><td>0.55 – 1.00</td></tr>
-                        <tr><td>Sandstone</td><td>0.30 – 0.60</td></tr>
-                        <tr><td>Weak Shales</td><td>0.05 – 0.30</td></tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </div>
+<h3>Rock Slope</h3>
+β<input id="beta" value="40">
+s<input id="s" value="1">
+γ<input id="gamma" value="22">
+α<input id="alpha" value="30">
+Φ<input id="phi" value="45">
+CH<input id="CH" value="0.18">
+CV<input id="CV" value="0.12">
 
-    <script src="https://cdn.jsdelivr.net/npm/utm-latlng@1.0.8/UTMLatLngFront.min.js"></script>
-    <script>
-        function convertCoords() {
-            const utm = new UTMLatLng();
-            const lat = document.getElementById('lat').value;
-            const lon = document.getElementById('lon').value;
-            
-            if(!lat || !lon) return alert("Please enter both values");
+<h3>Anchor</h3>
+iX<input id="ix" value="3">
+iY<input id="iy" value="3">
+Φe (mm)<input id="phie" value="32">
+Φi (mm)<input id="phii" value="19">
+tc (mm)<input id="tc" value="2.4">
+fyk (MPa)<input id="fyk" value="560">
+γA<input id="gammaA" value="1.15">
+τlim (MPa)<input id="taulim" value="0.15">
+γT<input id="gammaT" value="1.8">
 
-            const res = utm.convertLatLngToUtm(lat, lon, 2);
-            const display = document.getElementById('coordResult');
-            display.classList.remove('d-none');
-            display.innerHTML = `
-                <strong>Easting:</strong> ${res.Easting.toFixed(2)} m<br>
-                <strong>Northing:</strong> ${res.Northing.toFixed(2)} m<br>
-                <strong>UTM Zone:</strong> ${res.ZoneNumber}${res.ZoneLetter}
-            `;
-        }
-    </script>
+<h3>Mesh</h3>
+M0 (kN)<input id="M0" value="155">
+γmesh<input id="gammaMesh" value="2.5">
+
+<button onclick="calculate()">Calculate</button>
+
+<div class="results" id="output"></div>
+
+</div>
+
+<script>
+
+function rad(x){return x*Math.PI/180;}
+
+function calculate(){
+
+// ================= INPUTS =================
+let β = rad(parseFloat(beta.value));
+let s = parseFloat(document.getElementById("s").value);
+let γ = parseFloat(document.getElementById("gamma").value);
+let α = rad(parseFloat(document.getElementById("alpha").value));
+let Φ = rad(parseFloat(document.getElementById("phi").value));
+let CH = parseFloat(document.getElementById("CH").value);
+let CV = parseFloat(document.getElementById("CV").value);
+
+let iX = parseFloat(document.getElementById("ix").value);
+let iY = parseFloat(document.getElementById("iy").value);
+
+let Φe = parseFloat(document.getElementById("phie").value);
+let Φi = parseFloat(document.getElementById("phii").value);
+let tc = parseFloat(document.getElementById("tc").value);
+let fyk = parseFloat(document.getElementById("fyk").value);
+let γA = parseFloat(document.getElementById("gammaA").value);
+let τlim = parseFloat(document.getElementById("taulim").value);
+let γT = parseFloat(document.getElementById("gammaT").value);
+
+let M0 = parseFloat(document.getElementById("M0").value);
+let γmesh = parseFloat(document.getElementById("gammaMesh").value);
+
+// ================= EFFECTIVE STEEL AREA =================
+// Ne = π/4((Φe-2tc)^2 - Φi^2) fyk
+
+let Aeff = Math.PI/4 * (Math.pow(Φe-2*tc,2) - Math.pow(Φi,2));
+let Ne = Aeff * fyk; // N
+let Fy_k = Ne; // elastic
+let Fy_d = (Ne/1000)/γA; // kN
+
+// ================= WEIGHT OF UNSTABLE MASS =================
+// W = iX * iY * s * γ
+
+let W = iX*iY*s*γ; // kN
+
+// ================= DRIVING FORCES =================
+let WT = W*Math.sin(β);
+let WHT = W*CH*Math.cos(β);
+let WVT = W*CV*Math.sin(β);
+
+let τD = WT + WHT + WVT;
+
+// ================= RESISTING FORCES =================
+let WN = W*Math.cos(β)*Math.tan(Φ);
+let WHN = W*CH*Math.sin(β)*Math.tan(Φ);
+let WVN = W*CV*Math.cos(β)*Math.tan(Φ);
+
+let τS = WN + WHN + WVN;
+
+// ================= REQUIRED STABILIZING =================
+let Rstab = τD - τS;
+
+// ================= SAFETY FACTORS =================
+let FOS_slope = (Fy_d + τS)/τD;
+let FOS_anchor = Fy_d/Rstab;
+let AnchorWorking = (Rstab/Fy_d)*100;
+
+// ================= NAIL LENGTH =================
+// P = Rstab (kN -> N)
+
+let P = Rstab*1000;
+
+let drill = 0.076; // m
+let Ls = P/(Math.PI*drill*τlim*1000000/γT);
+let Li = s/Math.cos(β);
+let Lp = 0.30;
+
+let Ltotal = Ls + Li + Lp;
+
+// ================= MESH DESIGN =================
+
+// Sliding block
+let h = iY*Math.sin(rad(40-30))/Math.sin(rad(180-40-10));
+let Bk = γ*iX*h*(iY/2);
+
+let BT = Bk*Math.sin(α);
+let BHT = Bk*CH*Math.cos(α);
+let BVT = Bk*CV*Math.sin(α);
+
+let BD = BT + BHT + BVT;
+
+let BN = Bk*Math.cos(α)*Math.tan(Φ);
+let BHN = Bk*CH*Math.sin(α)*Math.tan(Φ);
+let BVN = Bk*CV*Math.cos(α)*Math.tan(Φ);
+
+let BR = BN + BHN + BVN;
+
+let Fd = BD - BR;
+
+let Md = Fd*Math.sin(rad(40-30));
+
+let Mdesign = M0/γmesh;
+
+let FOS_mesh = Mdesign/Md;
+let MeshWorking = (Md/Mdesign)*100;
+
+// ================= OUTPUT =================
+
+output.innerHTML = `
+<h3>RESULTS</h3>
+Slope FOS = <b>${FOS_slope.toFixed(2)}</b><br>
+Anchor FOS = <b>${FOS_anchor.toFixed(2)}</b><br>
+Anchor Working Rate = <b>${AnchorWorking.toFixed(1)} %</b><br><br>
+
+Required Anchor Length = <b>${Ltotal.toFixed(2)} m</b><br><br>
+
+Mesh Punch FOS = <b>${FOS_mesh.toFixed(2)}</b><br>
+Mesh Working Rate = <b>${MeshWorking.toFixed(1)} %</b>
+`;
+
+}
+
+</script>
 </body>
 </html>
